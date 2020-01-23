@@ -76,10 +76,11 @@
   ;(lson btree) -returns the left child of the given btree
   ;(rson btree) -returns the right child of the given btree
   ;(contents-of btree) - returns the current value of the interior node
-  (number-leaves-helper btree 0))
+  (car (number-leaves-helper btree 0)))
 
-;number-leaves-helper: bintree accum -> bintree
-;purpose: to replace the leaves with the number of leaf it is in the tree
+;number-leaves-helper: bintree accum -> (list bintree num)
+;purpose: to output a list with the first element being the bintree with the leaves replaced with the number of leaf that it is, and the
+;second element being the total number of leaves encountered
 ;ACCUM INV:
 (define (number-leaves-helper btree ctr)
   ;INVENTORY
@@ -87,27 +88,24 @@
   ;(lson btree) -returns the left child of the given btree
   ;(rson btree) -returns the right child of the given btree
   ;(contents-of btree) - returns the current value of the interior node
-  (cond [(leaf? btree) ctr]
-        
-        [else (append (car btree)
-                      (number-leaves-helper (lson btree) ctr)
-                      (number-leaves-helper (rson btree) (+ 1 ctr)))]))
+  (cond [(leaf? (contents-of btree)) (cons ctr (+ 1 ctr))]
+        [else
+         (letrec [(left-side (number-leaves-helper (lson btree) ctr))
+                  (right-side (number-leaves-helper (rson btree) (cdr left-side)))]
+         (cons (interior-node(contents-of btree)
+                            (car left-side)
+                            (car right-side))
+                    (cdr right-side)))]))
 
-
-
-;start from the top, if (Leaf? lson) then recurse with ctr plus one. Else recurse without increasing
-
-;(foo (bar 26 12) (baz 11 (quux 117 14)))
-;(check-expect (number-leaves
-;                (interior-node ’foo
-;                               (interior-node ’bar
-;                                              (leaf 26)
-;                                              (leaf 12))
-;                               (interior-node ’baz
-;                                              (leaf 11)
-;                                              (interior-node ’quux
-;                                                             (leaf 117)
-;                                                             (leaf 14)))))
-;              '(foo (bar 0 1) (baz 2 (quux 3 4))))
-;
+(check-expect (number-leaves
+                (interior-node 'foo
+                               (interior-node 'bar
+                                              (leaf 26)
+                                              (leaf 12))
+                               (interior-node 'baz
+                                              (leaf 11)
+                                              (interior-node 'quux
+                                                             (leaf 117)
+                                                             (leaf 14)))))
+              '(foo (bar 0 1) (baz 2 (quux 3 4))))
 (test)
