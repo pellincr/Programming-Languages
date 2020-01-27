@@ -96,36 +96,6 @@
                             (car left-side)
                             (car right-side))
                     (cdr right-side)))]))
-;---------------------------------------------------------------------------
-;checks for helper function:
- (check-expect(number-leaves-helper (interior-node 'bar
-                                       (leaf 29)
-                                       (leaf 12))0)
-'((bar 0 1) . 2))
-
-(check-expect (number-leaves-helper (interior-node 'foo
-                                                   (interior-node 'bar
-                                                                  (leaf 40)
-                                                                  (leaf 90))
-                                                   (interior-node 'mickey
-                                                                  (leaf 111)
-                                                                  (leaf 124)))0)
-              '((foo (bar 0 1) (mickey 2 3)) . 4))
-
-(check-expect (number-leaves-helper (interior-node 'foo
-                                                   (interior-node 'bar
-                                                                  (leaf 12)
-                                                                  (leaf 20))
-                                                   (interior-node 'mickey
-                                                                  (interior-node 'fuz
-                                                                                 (leaf 25)
-                                                                                 (leaf 40))
-                                                                 (leaf 60)))0)
-             '((foo (bar 0 1) (mickey (fuz 2 3)4)) . 5))
-                                                   
-
-
-;checks for main function:
 
 (check-expect (number-leaves
                 (interior-node 'foo
@@ -138,16 +108,4 @@
                                                              (leaf 117)
                                                              (leaf 14)))))
               '(foo (bar 0 1) (baz 2 (quux 3 4))))
-
-(check-expect  (number-leaves (interior-node 'foo
-                                 (leaf 10)
-                                 (leaf 12)))
-               '(foo 0 1))
-
-(check-expect (number-leaves (interior-node 'foo
-                                           (interior-node 'boo
-                                                          (leaf 10)
-                                                          (leaf 12))
-                                           (leaf 30)))
-                             '(foo (boo 0 1)2))
 (test)
