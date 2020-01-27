@@ -49,6 +49,9 @@
   (cadr inode))
 
 (check-expect (lson (interior-node 's (leaf 10) (leaf 11))) 10)
+(check-expect (lson (interior-node 's (interior-node 'j (leaf 8) (leaf 6))
+                                   (interior-node 'j (leaf 7) (leaf 5))))
+              (interior-node 'j (leaf 8) (leaf 6)))
 
 ;rson: interior-node -> bin-tree
 ;Purpose: to get the right child of the given interior node
@@ -56,6 +59,9 @@
   (caddr inode))
 
 (check-expect (rson (interior-node 's (leaf 10) (leaf 11))) 11)
+(check-expect (rson (interior-node 's (interior-node 'j (leaf 8) (leaf 6))
+                                   (interior-node 'j (leaf 7) (leaf 5))))
+              (interior-node 'j (leaf 7) (leaf 5)))
 
 ;contents-of: interior-node -> symbol
 ;Purpose: to get the node value of the given interior node
@@ -65,7 +71,6 @@
 
 (check-expect (contents-of (leaf 14)) 14)
 (check-expect (contents-of (interior-node 's (leaf 10) (leaf 11))) 's)
-
 
 
 ;number-leaves: bintree -> bintree
@@ -81,7 +86,7 @@
 ;number-leaves-helper: bintree accum -> (list bintree num)
 ;purpose: to output a list with the first element being the bintree with the leaves replaced with the number of leaf that it is, and the
 ;second element being the total number of leaves encountered
-;ACCUM INV:
+;ACCUM INV: accum = the number of leaves found so far
 (define (number-leaves-helper btree ctr)
   ;INVENTORY
   ;(leaf? btree)-determines if the bintree is a leaf
@@ -126,6 +131,12 @@
 
 
 ;checks for main function:
+
+(check-expect (number-leaves
+               (leaf 3))
+              0)
+;according to the language, a leaf is a number, or a bintree.
+;the book asks to produce a bintree, which could be a leaf which is a number.
 
 (check-expect (number-leaves
                 (interior-node 'foo
