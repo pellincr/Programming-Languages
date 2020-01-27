@@ -86,7 +86,8 @@
 ;number-leaves-helper: bintree accum -> (list bintree num)
 ;purpose: to output a list with the first element being the bintree with the leaves replaced with the number of leaf that it is, and the
 ;second element being the total number of leaves encountered
-;ACCUM INV: accum = the number of leaves found so far
+;ACCUM INV: accum = the number of leaves processed until the next recursion.
+
 (define (number-leaves-helper btree ctr)
   ;INVENTORY
   ;(leaf? btree)-determines if the bintree is a leaf
