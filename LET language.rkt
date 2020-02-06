@@ -64,7 +64,7 @@
      ("empty-list") MTList-exp)
 
     (expression
-     ("list" "(" (arbno "," expression) ")" ) list-exp)
+     ("list" "(" (arbno expression) ")" ) list-exp)
     ))
 
 ;;;;;;;;;;;;;;;; sllgen boilerplate ;;;;;;;;;;;;;;;;
@@ -295,7 +295,7 @@
 
     (list-exp (exps)
               (let ((vals (map (lambda(exp) (value-of exp env)) exps)))
-                (list-val (list (car vals) (value-of (list-val (cdr vals)) env)))))
+                (list-val vals)))
     ))
 
 ;;;;;;   EVALUATION WRAPPERS
@@ -359,5 +359,5 @@
 (check-expect (eval "null?(empty-list)")
               (bool-val #t))
 (check-expect (eval "list(x v)")
-              (list-val (list 10 5)))
+              (list-val (list (num-val 10) (num-val 5))))
 (test)
