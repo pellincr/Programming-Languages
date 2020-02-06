@@ -6,24 +6,24 @@
 
 (define the-lexical-spec
   '((whitespace (whitespace) skip)
-    
+
     (comment ("%" (arbno (not #\newline))) skip)
-    
+
     (identifier
      (letter (arbno (or letter digit "_" "-" "?"))) symbol)
-    
+
     (number (digit (arbno digit)) number)
-    
+
     (number ("-" digit (arbno digit)) number)
     ))
 
 (define the-grammar
   '((program (expression) a-program)
-    
+
     (expression (number) const-exp)
 
     (expression ("minus" "(" expression ")") minus-exp)
-    
+
     (expression("-" "(" expression "," expression ")")diff-exp)
 
     (expression ("+" "(" expression "," expression ")") add-exp)
@@ -31,7 +31,7 @@
     (expression ("*" "(" expression "," expression ")") mult-exp)
 
     (expression ("/" "(" expression "," expression ")" ) quot-exp)
-    
+
     (expression ("zero?" "(" expression ")") zero?-exp)
 
     (expression ("equal?" "(" expression "," expression ")" ) eq?-exp)
@@ -39,15 +39,32 @@
     (expression ("greater?" "(" expression "," expression ")") greater?-exp)
 
     (expression ("less?" "(" expression "," expression ")") less?-exp)
-    
+
     (expression
      ("if" expression "then" expression "else" expression) if-exp)
-    
+
     (expression (identifier) var-exp)
-    
-    (expression 
-     ("let" identifier "=" expression "in" expression) let-exp)   
-    
+
+    (expression
+     ("let" identifier "=" expression "in" expression) let-exp)
+
+    (expression
+     ("cons" "(" expression "," expression ")") cons-exp)
+
+    (expression
+     ("car" "(" expression ")" ) car-exp)
+
+    (expression
+     ("cdr" "(" expression ")" ) cdr-exp)
+
+    (expression
+     ("null?" "(" expression ")" ) null?-exp)
+
+    (expression
+     ("empty-list") MTList-exp)
+
+    (expression
+     ("list" "(" (arbno "," expression) ")" ) list-exp)
     ))
 
 ;;;;;;;;;;;;;;;; sllgen boilerplate ;;;;;;;;;;;;;;;;
@@ -94,7 +111,7 @@
   (lambda ()
     (empty-env-record)))
 
-(define empty-env? 
+(define empty-env?
   (lambda (x)
     (empty-env-record? x)))
 
@@ -114,7 +131,7 @@
               (apply-env old-env search-sym))))))
 
 (define (init-env)
-  (extend-env 
+  (extend-env
    'i (num-val 1)
    (extend-env
     'v (num-val 5)
@@ -131,7 +148,9 @@
   (num-val
    (value number?))
   (bool-val
-   (boolean boolean?)))
+   (boolean boolean?))
+  (list-val
+   (myList list?)))
 
 ;;; observers:
 
@@ -149,6 +168,13 @@
       (bool-val (bool) bool)
       (else (expval-extractor-error 'bool v)))))
 
+;; expval->list : ExpVal -> list
+(define expval->list
+  (lambda (v)
+    (cases expval v
+      (list-val (list) list)
+      (else (expval-extractor-error 'list v)))))
+
 (define expval-extractor-error
   (lambda (variant value)
     (eopl:error 'expval-observers "Looking for a ~s, found ~s"
@@ -165,16 +191,16 @@
 ;; value-of : Exp * Env -> ExpVal
 (define (value-of exp env)
   (cases expression exp
-    
+
     (const-exp (num) (num-val num))
-    
+
     (var-exp (var) (apply-env env var))
 
     (minus-exp (exp)
                (let ((val (value-of exp env)))
                  (let ((num (expval->num val)))
-                 (num-val (- 0 num)))))
-    
+                   (num-val (- 0 num)))))
+
     (diff-exp (exp1 exp2)
               (let ((val1 (value-of exp1 env))
                     (val2 (value-of exp2 env)))
@@ -201,9 +227,9 @@
                     (val2 (value-of exp2 env)))
                 (let ((num1 (expval->num val1))
                       (num2 (expval->num val2)))
-                  (num-val (/ num1 num2)))))
-                  
-    
+                  (num-val (quotient num1 num2)))))
+
+
     (zero?-exp (exp1)
                (let ((val1 (value-of exp1 env)))
                  (let ((num1 (expval->num val1)))
@@ -231,18 +257,45 @@
                  (let ((num1 (expval->num val1))
                        (num2 (expval->num val2)))
                    (bool-val (< num1 num2)))))
-    
+
     (if-exp (exp1 exp2 exp3)
             (let ((val1 (value-of exp1 env)))
               (if (expval->bool val1)
                   (value-of exp2 env)
                   (value-of exp3 env))))
-    
-    (let-exp (var exp1 body)       
+
+    (let-exp (var exp1 body)
              (let ((val1 (value-of exp1 env)))
                (value-of body
                          (extend-env var val1 env))))
-    
+
+    (cons-exp (exp1 exp2)
+              (let ((val1 (value-of exp1 env))
+                    (val2 (value-of exp2 env)))
+                (let ((list2 (expval->list val2)))
+                  (list-val (cons val1 list2)))))
+
+    (car-exp (exp)
+             (let ((val (value-of exp env)))
+               (let ((list1 (expval->list val)))
+                 (car list1))))
+
+    (cdr-exp (exp)
+             (let ((val (value-of exp env)))
+               (let ((list1 (expval->list val)))
+                 (list-val (cdr list1)))))
+
+    (null?-exp (exp)
+               (let ((val (value-of exp env)))
+                 (let ((list1 (expval->list val)))
+                   (bool-val (null? list1)))))
+
+    (MTList-exp ()
+                (list-val '()))
+
+    (list-exp (exps)
+              (let ((vals (map (lambda(exp) (value-of exp env)) exps)))
+                (list-val (list (car vals) (value-of (list-val (cdr vals)) env)))))
     ))
 
 ;;;;;;   EVALUATION WRAPPERS
@@ -265,6 +318,11 @@
 ; (eval "greater?(x, v)")
 ; (eval "less?(x, v)")
 ; (eval "let x = 2 in -(x, 2)")
+; (eval "cons(x,empty-list)")
+; (eval "car(cons(x,empty-list))")
+; (eval "cdr(cons(x, empty-list))")
+; (eval "null?(cons(x, empty-list))")
+; (eval "null?(empty-list)")
 
 (check-expect (eval "if zero?(1) then 1 else 2")
               (num-val 2))
@@ -290,6 +348,16 @@
               (bool-val #f))
 (check-expect (eval "let x = 2 in -(x, 2)")
               (num-val 0))
-
+(check-expect (eval "cons(x,empty-list)")
+              (list-val (list (num-val 10))))
+(check-expect (eval "car(cons(x,empty-list))")
+              (num-val 10))
+(check-expect (eval "cdr(cons(x, empty-list))")
+              (list-val '()))
+(check-expect (eval "null?(cons(x, empty-list))")
+              (bool-val #f))
+(check-expect (eval "null?(empty-list)")
+              (bool-val #t))
+(check-expect (eval "list(x v)")
+              (list-val (list 10 5)))
 (test)
-
