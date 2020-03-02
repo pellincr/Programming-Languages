@@ -488,6 +488,18 @@
 ;              end")
 ;
 
+
+(check-expect (eval "if zero?(1) then 1 else 2")
+              (num-val 2))
+(check-expect (eval "-(x, v)")
+              (num-val 5))
+(check-expect (eval "if zero?(-(x, x)) then x else 2")
+              (num-val 10))
+(check-expect (eval "if zero?(-(x, v)) then x else 2")
+              (num-val 2))
+(check-expect (eval "let x = 2 in -(x, 2)")
+              (num-val 0))
+
 (check-expect (eval "let a = 3
         in let p = proc (x) set x = 4
            in begin
@@ -522,6 +534,8 @@
 ;                                end
 ;                in (mystery 10)")
 ; Will resut in an error since x is being mutated
+
+
 
 (check-expect (eval "let x = 200
           in let f = proc (z) -(z, x)
