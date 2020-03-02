@@ -257,6 +257,7 @@
 
 ;; setref! : Ref * ExpVal -> Unspecified
 (define (setref! ref val)
+  (if (reference? ref)
   (set! the-store
         (letrec
             ((setref-inner
@@ -273,7 +274,8 @@
                     (car store1)
                     (setref-inner
                      (cdr store1) (- ref1 1))))))))
-          (setref-inner the-store ref))))
+          (setref-inner the-store ref)))
+  (eopl:error 'expval "Cannot mutate using a let-exp")))
 
 (define (report-invalid-reference ref the-store)
   (eopl:error 'setref
@@ -391,14 +393,12 @@
                  (value-of-begins exp1 exps)))
 
     (assign-exp (var exp1)
-         ; (if (expval? exp1)
-          ;    (eopl:error 'expval "Cannot mutate using a let-exp")
               (begin
             (setref!
               (apply-env env var)
               (value-of exp1 env))
-            (num-val 27))) ;; this is a don't care value.
-    ))
+            (num-val 27)))) ;; this is a don't care value.
+    )
 
 ;; apply-procedure : Proc * ExpVal -> ExpVal
 (define apply-procedure
