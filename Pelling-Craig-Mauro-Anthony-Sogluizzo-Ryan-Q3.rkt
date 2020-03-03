@@ -542,10 +542,10 @@
                in let x = 100
                     in let g = proc (z) -(z, x)
                          in -((f 1), (g 1))")
-              (eval "let x = 200
-          in let f = proc (z) -(z, x)
-               in let x = 100
-                    in let g = proc (z) -(z, x)
+              (eval "letmut x = 200
+          in letmut f = proc (z) -(z, x)
+               in letmut x = 100
+                    in letmut g = proc (z) -(z, x)
                          in -((f 1), (g 1))"))
 
 (test)
