@@ -1,0 +1,451 @@
+#lang eopl
+
+; ; Below is the implementation of the LETREC language implemented
+; ; in class extended with true and false expressions.
+; ;
+; ; As you may have already realized, adding expressions to a programming
+; ; language requires a great deal more than adding rules to the grammar.
+; ; It also requires that the impementation of the language (e.g., value-of,
+; ; value-of program, etc.) be changed. This is an undesirable feature,
+; ; because it may lead to constantly making changes to make the language
+; ; more palatable for programmers and it may lead to bugs in the
+; ; implementation of the language.
+; ;
+; ; For this reason, programming languages implementators strive to implement
+; ; new grammatical features in terms of existing grammatical features. This
+; ; process in called desugaring. In essence, desugaring translates some
+; ; expression into other expressions to avoid having to change the language
+; ; implementation. For example, adding cond-expressions to the LETREC
+; ; language can be done without changing value-of program and value-of if
+; ; we desugar them. Here is an example:
+; ;
+; ; (desugar-expr cond zero?(x) ==> 9
+; ;                   zero?(-(x, 1)) ==> 0
+; ;                   true 10)
+; ;
+; ;
+; ; =
+; ; if zero?(x) then 9 else if zero?(-(x, 1)) then 0 else 10
+; ;
+; ; As you can see, by desugaring we can add cond-expressions to the LETREC
+; ; language without changing value-of, because evaluating a cond-expression
+; ; is the same as evaluating an if-expression.
+; ;
+; ; This exam askes you to write a desugaring function for the following
+; ; new expressions:
+; ;  1. cond-expression
+; ;  2. or-expression
+; ;  3. and-expression
+; ;  4. add-expression
+; ;
+; ; The grammar for these expressions is as follows:
+; ;
+; ; expression --> +(expression, expression) ;make the right expression negative and subtract
+; ;            --> cond (expresion ==> expression)* end ;every new (expresion ==> expression)* is a new if statement
+; ;            -->  and (expression {, expression}*) ;Nested if statement, only outputs if all ifs pass
+; ;            -->   or (expression {, expression}*) ;if(...) then true else if (...) then true else false
+; ;
+; ; You need to add these expressions to the grammar, but such expressions
+; ; should never be evaluated given that they are to always be desugared.
+; ;
+; ; Update value-of-program to be:
+; ;
+; ; ;; value-of-program : Program -> ExpVal
+; ; (define (value-of-program pgm)
+; ;   (cases program pgm
+; ;     (a-program (exp1)
+; ;                (value-of (desugar-expr exp1) (init-env)))))
+; ;
+; ; The function desugar-expr is the function that you need to write. It needs
+; ; to translate the expressions listed above to existing expressions in the
+; ; LETREC language.
+; ;
+;
+
+
+
+;desugar-expr: expr -> expr
+;Purpose: to turn the given expression to one that exists within the function value-of
+(define (desugar-expr exp)
+  (cond [(eqv? "+" (substring 0 1 exp))(make-add-exp exp)]
+        [(eqv? "cond" (substring 0 4 exp))(make-cond-exp exp)]
+        [(eqv? "and" (substring 0 3 exp))(make-and-exp exp)]
+        [(eqv? "or" (substring 0 2 exp))(make-or-exp exp)]
+        [else exp]))
+
+;find-first-occurrence: string string -> number
+;Purpose: to take in a string and determine wher e the first occurence of the second string is
+(define (find-first-occurrence main s)
+  (letrec ((helper (lambda (n)
+                     (cond [(equal? (substring main n (+ 1 n)) s) n]
+                           [else (helper (+ 1 n))]))))
+    (helper 0)))
+
+;+(4,3) -> -(4,-(0,3))
+;make-add-exp: exp -> exp
+;Purpose: to turn the given add-exp into a diff-exp
+(define (make-add-exp exp)
+  (string-append "-("
+                 (substring exp 2 (+ (find-first-occurrence exp ",") 1))
+                 "-(0,"
+                 (substring exp (+ (find-first-occurrence exp ",") 1))
+                 ")"))
+
+
+;cond (expresion ==> expression)* end
+;cond (zero?(x) ==> 9)
+;     (zero?(-(x, 1)) ==> 0)
+;    (true ==> 10)
+;     end
+;"if zero?(1) then 1 else 2"
+;make-cond-exp: exp -> exp
+;Purpose: to make the given cond-exp into an if-exp
+(define (make-cond-exp exp)
+  (cond [(equal? "end" (substring exp 0 3)) ""]
+        [(equal? "cond" (substring exp 0 4))
+         (string-append "if"
+                             (substring exp 4 (find-first-occurrence exp "="))
+                             "then"
+                             (substring exp (+ 1 (find-first-occurrence exp ">")) (find-first-occurrence exp "\n"))
+                             " else "
+                             (make-cond-exp (substring exp (+ 1 (find-first-occurrence exp "\n")))))]
+        [(> (number-of-==> exp) 1)
+         (string-append "if "
+                             (substring exp 0 (find-first-occurrence exp "="))
+                             "then"
+                             (substring exp (+ 1 (find-first-occurrence exp ">")) (find-first-occurrence exp "\n"))
+                             " else"
+                             (make-cond-exp (substring exp (+ 1 (find-first-occurrence exp "\n")))))]
+        [else (string-append "if "
+                             (substring exp 0 (find-first-occurrence exp "="))
+                             "then"
+                             (substring exp (+ 1 (find-first-occurrence exp ">")) (find-first-occurrence exp "\n"))
+
+                             (make-cond-exp (substring exp (+ 1 (find-first-occurrence exp "\n")))))]))
+;make-and-exp: exp -> exp
+;Purpose: to make the given and-exp into an if-exp
+;and(x,y) -> if x then if y then true else false
+;and(x,y,z))) ->
+(define (make-and-exp exp)
+  (cond [(equal? exp ")") "true"] ;end of the expression
+        [(and (equal? (substring exp 0 1) ",") (> (number-of-commas exp) 1))
+         (string-append "if "
+                        (substring exp 1 (+ 1 (find-first-occurrence (substring exp 1) ",")));expression inbetween 2 commas
+                        " then "
+                        (make-and-exp (substring exp (+ 1 (find-first-occurrence exp ","))))
+                        " else false")]
+        [(equal? (substring exp 0 3) "and") ;first expression, before anything has been processed
+         (string-append "if "
+                        (substring exp (+ 1 (find-first-occurrence exp "("))
+                                   (find-first-occurrence exp ","))
+                        " then "
+                        (make-and-exp (substring exp (find-first-occurrence exp ",")))
+                        " else false")]
+        [else (string-append "if "
+                             (substring exp 2 (find-first-occurrence exp ")"))
+                             " then "
+                             (make-and-exp (substring exp (find-first-occurrence exp ")")))
+                             " else false")]))
+
+;make-or-exp: exp -> exp
+;Purpose: to make the given or-exp into an if-exp
+;or(x,y) -> if x then true else if y then true else false
+(define (make-or-exp exp)
+  (cond [(equal? exp ")") "false"]
+        [(and (equal? (substring exp 0 1) ",") (> (number-of-commas exp) 1))
+         (string-append "if "
+                        (substring exp 1 (+ 1 (find-first-occurrence (substring exp 1) ",")))
+                        " then true else "
+                        (make-or-exp (substring exp (+ 1 (find-first-occurrence exp ",")))))]
+        [(equal? (substring exp 0 2) "or")
+         (string-append "if "
+                        (substring exp (+ 1 (find-first-occurrence exp "("))
+                                   (find-first-occurrence exp ","))
+                        " then true else "
+                        (make-or-exp (substring exp (find-first-occurrence exp ","))))]
+        [else (string-append "if "
+                             (substring exp 2 (find-first-occurrence exp ")"))
+                             " then true else "
+                             (make-or-exp (substring exp (find-first-occurrence exp ")"))))]))
+
+;number-of-commas: exp -> num
+;Purpose: to determine how many commas appear in the given exp
+(define (number-of-commas exp)
+  (cond [(equal? exp "") 0]
+        [(equal? (substring exp 0 1) ",") (+ 1 (number-of-commas (substring exp 1)))]
+        [else (number-of-commas (substring exp 1))]))
+
+;number-of-==>: exp -> num
+;Purpose: to determine how many time "==>" appears in the given exp
+(define (number-of-==> exp)
+  (cond [(< (string-length exp) 3) 0]
+        [(equal? (substring exp 0 3) "==>") (+ 1 (number-of-commas (substring exp 1)))]
+        [else (number-of-commas (substring exp 1))]))
+;;;;;;;;;;;;;;;; grammatical specification ;;;;;;;;;;;;;;;;
+
+(define the-lexical-spec
+  '((whitespace (whitespace) skip)
+
+    (comment ("%" (arbno (not #\newline))) skip)
+
+    (identifier
+     (letter (arbno (or letter digit "_" "-" "?"))) symbol)
+
+    (number (digit (arbno digit)) number)
+
+    (number ("-" digit (arbno digit)) number)
+    ))
+
+(define the-grammar
+  '((program (expression) a-program)
+
+    (expression (number) const-exp)
+
+    (expression("-" "(" expression "," expression ")")diff-exp)
+
+    (expression("+" "(" expression "," expression ")")add-exp)
+
+    (expression ("zero?" "(" expression ")") zero?-exp)
+
+    (expression
+     ("if" expression "then" expression "else" expression) if-exp)
+
+    (expression
+     ("cond"(arbno expression "==>" expression) "end") cond-exp)
+
+    (expression
+     ("and" "(" expression (arbno "," expression) ")") and-exp)
+
+    (expression (identifier) var-exp)
+
+    (expression
+     ("let" identifier "=" expression "in" expression) let-exp)
+
+    (expression
+     ("letrec" identifier "(" identifier ")" "=" expression
+               "in" expression) letrec-exp)
+
+    (expression ("proc" "(" identifier ")" expression) proc-exp)
+
+    (expression ("(" expression expression ")") call-exp)
+
+    (expression ("true") true-exp)
+
+    (expression ("false") false-exp)
+
+
+    ))
+
+;;;;;;;;;;;;;;;; sllgen boilerplate ;;;;;;;;;;;;;;;;
+
+(sllgen:make-define-datatypes the-lexical-spec the-grammar)
+
+(define show-the-datatypes
+  (lambda () (sllgen:list-define-datatypes the-lexical-spec the-grammar)))
+
+(define scan&parse
+  (sllgen:make-string-parser the-lexical-spec the-grammar))
+
+(define just-scan
+  (sllgen:make-string-scanner the-lexical-spec the-grammar))
+
+;;;;;    ENVIRONMENT
+
+(define-datatype environment environment?
+  (empty-env)
+  (extend-env
+   (bvar symbol?)
+   (bval expval?)
+   (saved-env environment?))
+  (extend-env-rec
+   (id symbol?)
+   (bvar symbol?)
+   (body expression?)
+   (saved-env environment?)))
+
+(define (apply-env env search-sym)
+  (cases environment env
+    (empty-env ()
+               (eopl:error 'apply-env "No binding for ~s" search-sym))
+    (extend-env (var val saved-env)
+                (if (eqv? search-sym var)
+                    val
+                    (apply-env saved-env search-sym)))
+    (extend-env-rec (p-name b-var p-body saved-env)
+                    (if (eqv? search-sym p-name)
+                        (proc-val (procedure b-var p-body env))
+                        (apply-env saved-env search-sym)))))
+
+
+
+(define (init-env)
+  (extend-env
+   'i (num-val 1)
+   (extend-env
+    'v (num-val 5)
+    (extend-env
+     'x (num-val 10)
+     (empty-env)))))
+
+
+;;;;;;;;;;;;;;;; expressed values ;;;;;;;;;;;;;;;;
+
+;;; an expressed value is either a number, a boolean or a procval.
+
+(define-datatype expval expval?
+  (num-val
+   (value number?))
+  (bool-val
+   (boolean boolean?))
+  (proc-val
+   (proc proc?)))
+
+;;; extractors:
+
+;; expval->num : ExpVal -> Int
+(define expval->num
+  (lambda (v)
+    (cases expval v
+      (num-val (num) num)
+      (else (expval-extractor-error 'num v)))))
+
+;; expval->bool : ExpVal -> Bool
+(define expval->bool
+  (lambda (v)
+    (cases expval v
+      (bool-val (bool) bool)
+      (else (expval-extractor-error 'bool v)))))
+
+;; expval->proc : ExpVal -> Proc
+(define expval->proc
+  (lambda (v)
+    (cases expval v
+      (proc-val (proc) proc)
+      (else (expval-extractor-error 'proc v)))))
+
+(define expval-extractor-error
+  (lambda (variant value)
+    (eopl:error 'expval-extractors "Looking for a ~s, found ~s"
+                variant value)))
+
+
+;;;;;;;;;;;;;;;; procedures ;;;;;;;;;;;;;;;;
+
+;; proc? : SchemeVal -> Bool
+;; procedure : Var * Exp * Env -> Proc
+(define-datatype proc proc?
+  (procedure
+   (var symbol?)
+   (body expression?)
+   (env environment?)))
+
+
+;;;;;;;;;;;;;;;; the interpreter ;;;;;;;;;;;;;;;;
+
+;; value-of-program : Program -> ExpVal
+(define (value-of-program pgm)
+  (cases program pgm
+    (a-program (exp1)
+               (value-of (desugar-expr exp1) (init-env)))))
+
+;; value-of : Exp * Env -> ExpVal
+(define (value-of exp env)
+  (cases expression exp
+
+    (const-exp (num) (num-val num))
+
+    (var-exp (var) (apply-env env var))
+
+    (diff-exp (exp1 exp2)
+              (let ((val1 (value-of exp1 env))
+                    (val2 (value-of exp2 env)))
+                (let ((num1 (expval->num val1))
+                      (num2 (expval->num val2)))
+                  (num-val (- num1 num2)))))
+
+    (zero?-exp (exp1)
+               (let ((val1 (value-of exp1 env)))
+                 (let ((num1 (expval->num val1)))
+                   (if (zero? num1)
+                       (bool-val #t)
+                       (bool-val #f)))))
+
+    (if-exp (exp1 exp2 exp3)
+            (let ((val1 (value-of exp1 env)))
+              (if (expval->bool val1)
+                  (value-of exp2 env)
+                  (value-of exp3 env))))
+
+    (let-exp (var exp1 body)
+             (let ((val1 (value-of exp1 env)))
+               (value-of body
+                         (extend-env var val1 env))))
+
+    (letrec-exp (p-name param p-body letrec-body)
+                (value-of letrec-body (extend-env-rec p-name
+                                                      param
+                                                      p-body
+                                                      env)))
+
+    (proc-exp (var body)
+              (proc-val (procedure var body env)))
+
+    (call-exp (rator rand)
+              (let ((proc (expval->proc (value-of rator env)))
+                    (arg (value-of rand env)))
+                (apply-procedure proc arg)))
+
+    (true-exp () (bool-val #t))
+
+    (false-exp () (bool-val #f))
+
+    ))
+
+;; apply-procedure : Proc * ExpVal -> ExpVal
+(define (apply-procedure proc1 val)
+  (cases proc proc1
+    (procedure (var body saved-env)
+               (value-of body (extend-env var val saved-env)))))
+
+;;;;;;   EVALUATION WRAPPERS
+
+;; parse: String -> a-program
+(define (parse p) (scan&parse p))
+
+;; eval : String -> ExpVal
+(define (eval string)
+  (value-of-program (parse string)))
+
+;;;;; EXAMPLES OF EVALUATION
+
+;
+; (eval "if zero?(1) then 1 else 2")
+; (eval "-(x, v)")
+; (eval "if zero?(-(x, x)) then x else 2")
+; (eval "if zero?(-(x, v)) then x else 2")
+; (eval "let decr = proc (a) -(a, 1) in (decr 30)")
+; (eval "( proc (g) (g 30) proc (y) -(y, 1))")
+; (eval "let x = 200
+;          in let f = proc (z) -(z, x)
+;               in let x = 100
+;                    in let g = proc (z) -(z, x)
+;                         in -((f 1), (g 1))")
+;
+; (eval "let sum = proc (x) proc (y) -(x, -(0, y)) in ((sum 3) 4)")
+;
+; (eval "let x = 200
+;          in let f = proc (z) -(z, x)
+;               in let x = 100
+;                    in let g = proc (z) -(z, x)
+;                         in -((f 1), (g 1))")
+; (eval "let sum = proc (x) proc (y) -(x, -(0, y))
+;        in letrec sigma (n) = if zero?(n)
+;                              then 0
+;                              else ((sum n) (sigma -(n, 1)))
+;           in (sigma 5)")
+;
+; ; needs times
+; (eval "letrec fact(n) = if zero?(n) then 1 else *(n, (fact -(n, 1)))
+;        in (fact 5)")
+;
+;
