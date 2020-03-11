@@ -40,10 +40,10 @@
 ; ;
 ; ; The grammar for these expressions is as follows:
 ; ;
-; ; expression --> +(expression, expression) ;make the right expression negative and subtract
-; ;            --> cond (expresion ==> expression)* end ;every new (expresion ==> expression)* is a new if statement
-; ;            -->  and (expression {, expression}*) ;Nested if statement, only outputs if all ifs pass
-; ;            -->   or (expression {, expression}*) ;if(...) then true else if (...) then true else false
+; ; expression --> +(expression, expression)
+; ;            --> cond (expresion ==> expression)* end
+; ;            -->  and (expression {, expression}*)
+; ;            -->   or (expression {, expression}*)
 ; ;
 ; ; You need to add these expressions to the grammar, but such expressions
 ; ; should never be evaluated given that they are to always be desugared.
@@ -63,124 +63,38 @@
 ;
 
 
-
-;desugar-expr: expr -> expr
-;Purpose: to turn the given expression to one that exists within the function value-of
+;desugar-exp: exp -> exp
+;Purpose: to make the given exp into an expression that exists in value-of
 (define (desugar-expr exp)
-  (cond [(eqv? "+" (substring 0 1 exp))(make-add-exp exp)]
-        [(eqv? "cond" (substring 0 4 exp))(make-cond-exp exp)]
-        [(eqv? "and" (substring 0 3 exp))(make-and-exp exp)]
-        [(eqv? "or" (substring 0 2 exp))(make-or-exp exp)]
-        [else exp]))
+  (cases expression exp
+    (add-exp (exp1 exp2)
+             (diff-exp (desugar-expr exp1) (diff-exp (const-exp 0) (desugar-expr exp2))))
+    (cond-exp (exps1 exps2)
+              (desugar-expr (make-cond exps1 exps2)))
+    (and-exp (exp exps)
+             (if-exp (desugar-expr exp) (desugar-expr (make-and exps)) (false-exp)))
+    (or-exp (exp exps)
+            (if-exp (desugar-expr exp) (true-exp) (desugar-expr (make-or exps))))
+    (else exp)))
 
-;find-first-occurrence: string string -> number
-;Purpose: to take in a string and determine wher e the first occurence of the second string is
-(define (find-first-occurrence main s)
-  (letrec ((helper (lambda (n)
-                     (cond [(equal? (substring main n (+ 1 n)) s) n]
-                           [else (helper (+ 1 n))]))))
-    (helper 0)))
+;make-cond: exps exps -> exp
+;Purpose: to traverse the cond-exp
+(define (make-cond exps1 exps2)
+  (cond [(null? (cddr exps1)) (if-exp (car exps1)(car exps2) (cadr exps2))]
+        [else (if-exp (car exps1) (car exps2) (make-cond (cdr exps1) (cdr exps2)))]))
 
-;+(4,3) -> -(4,-(0,3))
-;make-add-exp: exp -> exp
-;Purpose: to turn the given add-exp into a diff-exp
-(define (make-add-exp exp)
-  (string-append "-("
-                 (substring exp 2 (+ (find-first-occurrence exp ",") 1))
-                 "-(0,"
-                 (substring exp (+ (find-first-occurrence exp ",") 1))
-                 ")"))
+;make-and: exps -> exp
+;Purpose: to traverse the and-exp
+(define (make-and exps)
+  (cond [(null? (cdr exps)) (if-exp (car exps) (true-exp) (false-exp))]
+        [else (if-exp (car exps) (make-and (cdr exps)) (false-exp))]))
 
+;make-or: exps -> exp
+;Purpose: to traverse the or-exp
+(define (make-or exps)
+  (cond [(null? (cdr exps)) (if-exp (car exps) (true-exp) (false-exp))]
+        [else (if-exp (car exps) (true-exp) (make-or (cdr exps)))]))
 
-;cond (expresion ==> expression)* end
-;cond (zero?(x) ==> 9)
-;     (zero?(-(x, 1)) ==> 0)
-;    (true ==> 10)
-;     end
-;"if zero?(1) then 1 else 2"
-;make-cond-exp: exp -> exp
-;Purpose: to make the given cond-exp into an if-exp
-(define (make-cond-exp exp)
-  (cond [(equal? "end" (substring exp 0 3)) ""]
-        [(equal? "cond" (substring exp 0 4))
-         (string-append "if"
-                             (substring exp 4 (find-first-occurrence exp "="))
-                             "then"
-                             (substring exp (+ 1 (find-first-occurrence exp ">")) (find-first-occurrence exp "\n"))
-                             " else "
-                             (make-cond-exp (substring exp (+ 1 (find-first-occurrence exp "\n")))))]
-        [(> (number-of-==> exp) 1)
-         (string-append "if "
-                             (substring exp 0 (find-first-occurrence exp "="))
-                             "then"
-                             (substring exp (+ 1 (find-first-occurrence exp ">")) (find-first-occurrence exp "\n"))
-                             " else"
-                             (make-cond-exp (substring exp (+ 1 (find-first-occurrence exp "\n")))))]
-        [else (string-append "if "
-                             (substring exp 0 (find-first-occurrence exp "="))
-                             "then"
-                             (substring exp (+ 1 (find-first-occurrence exp ">")) (find-first-occurrence exp "\n"))
-
-                             (make-cond-exp (substring exp (+ 1 (find-first-occurrence exp "\n")))))]))
-;make-and-exp: exp -> exp
-;Purpose: to make the given and-exp into an if-exp
-;and(x,y) -> if x then if y then true else false
-;and(x,y,z))) ->
-(define (make-and-exp exp)
-  (cond [(equal? exp ")") "true"] ;end of the expression
-        [(and (equal? (substring exp 0 1) ",") (> (number-of-commas exp) 1))
-         (string-append "if "
-                        (substring exp 1 (+ 1 (find-first-occurrence (substring exp 1) ",")));expression inbetween 2 commas
-                        " then "
-                        (make-and-exp (substring exp (+ 1 (find-first-occurrence exp ","))))
-                        " else false")]
-        [(equal? (substring exp 0 3) "and") ;first expression, before anything has been processed
-         (string-append "if "
-                        (substring exp (+ 1 (find-first-occurrence exp "("))
-                                   (find-first-occurrence exp ","))
-                        " then "
-                        (make-and-exp (substring exp (find-first-occurrence exp ",")))
-                        " else false")]
-        [else (string-append "if "
-                             (substring exp 2 (find-first-occurrence exp ")"))
-                             " then "
-                             (make-and-exp (substring exp (find-first-occurrence exp ")")))
-                             " else false")]))
-
-;make-or-exp: exp -> exp
-;Purpose: to make the given or-exp into an if-exp
-;or(x,y) -> if x then true else if y then true else false
-(define (make-or-exp exp)
-  (cond [(equal? exp ")") "false"]
-        [(and (equal? (substring exp 0 1) ",") (> (number-of-commas exp) 1))
-         (string-append "if "
-                        (substring exp 1 (+ 1 (find-first-occurrence (substring exp 1) ",")))
-                        " then true else "
-                        (make-or-exp (substring exp (+ 1 (find-first-occurrence exp ",")))))]
-        [(equal? (substring exp 0 2) "or")
-         (string-append "if "
-                        (substring exp (+ 1 (find-first-occurrence exp "("))
-                                   (find-first-occurrence exp ","))
-                        " then true else "
-                        (make-or-exp (substring exp (find-first-occurrence exp ","))))]
-        [else (string-append "if "
-                             (substring exp 2 (find-first-occurrence exp ")"))
-                             " then true else "
-                             (make-or-exp (substring exp (find-first-occurrence exp ")"))))]))
-
-;number-of-commas: exp -> num
-;Purpose: to determine how many commas appear in the given exp
-(define (number-of-commas exp)
-  (cond [(equal? exp "") 0]
-        [(equal? (substring exp 0 1) ",") (+ 1 (number-of-commas (substring exp 1)))]
-        [else (number-of-commas (substring exp 1))]))
-
-;number-of-==>: exp -> num
-;Purpose: to determine how many time "==>" appears in the given exp
-(define (number-of-==> exp)
-  (cond [(< (string-length exp) 3) 0]
-        [(equal? (substring exp 0 3) "==>") (+ 1 (number-of-commas (substring exp 1)))]
-        [else (number-of-commas (substring exp 1))]))
 ;;;;;;;;;;;;;;;; grammatical specification ;;;;;;;;;;;;;;;;
 
 (define the-lexical-spec
@@ -211,10 +125,13 @@
      ("if" expression "then" expression "else" expression) if-exp)
 
     (expression
-     ("cond"(arbno expression "==>" expression) "end") cond-exp)
+     ("cond"  (arbno expression "==>" expression)  "end") cond-exp)
 
     (expression
      ("and" "(" expression (arbno "," expression) ")") and-exp)
+
+    (expression
+     ("or" "(" expression (arbno "," expression) ")") or-exp)
 
     (expression (identifier) var-exp)
 
@@ -399,7 +316,7 @@
 
     (false-exp () (bool-val #f))
 
-    ))
+    (else (eopl:error "Given a non-valid expression"))))
 
 ;; apply-procedure : Proc * ExpVal -> ExpVal
 (define (apply-procedure proc1 val)
@@ -448,4 +365,4 @@
 ; (eval "letrec fact(n) = if zero?(n) then 1 else *(n, (fact -(n, 1)))
 ;        in (fact 5)")
 ;
-;
+; 
