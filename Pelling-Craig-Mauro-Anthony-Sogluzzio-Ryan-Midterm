@@ -70,12 +70,26 @@
     (add-exp (exp1 exp2)
              (diff-exp (desugar-expr exp1) (diff-exp (const-exp 0) (desugar-expr exp2))))
     (cond-exp (exps1 exps2)
-              (desugar-expr (make-cond exps1 exps2)))
+              (make-cond exps1 exps2))
     (and-exp (exp exps)
              (if-exp (desugar-expr exp) (desugar-expr (make-and exps)) (false-exp)))
     (or-exp (exp exps)
             (if-exp (desugar-expr exp) (true-exp) (desugar-expr (make-or exps))))
+
+    (const-exp (num) (const-exp num))
+    (diff-exp (exp1 exp2)(diff-exp (desugar-expr exp1) (desugar-expr exp2)))
+    (zero?-exp (exp) (zero?-exp (desugar-expr exp)))
+    (var-exp (id) (var-exp id))
+    (if-exp (exp1 exp2 exp3) (if-exp (desugar-expr exp1) (desugar-expr exp2) (desugar-expr exp3)))
+    (let-exp (var exp body) (let-exp var (desugar-expr exp) (desugar-expr body)))
+    (letrec-exp (pname param exp1-pbody exp2-letrecbody) (letrec-exp pname param (desugar-expr exp1-pbody) (desugar-expr exp2-letrecbody)))
+    (proc-exp (id exp) (proc-exp id (desugar-expr exp)))
+    (call-exp (exp1 exp2) (call-exp (desugar-expr exp1) (desugar-expr exp2)))
+    (true-exp () (true-exp))
+    (false-exp () (false-exp))
     (else exp)))
+
+
 
 ;make-cond: exps exps -> exp
 ;Purpose: to traverse the cond-exp
@@ -316,7 +330,8 @@
 
     (false-exp () (bool-val #f))
 
-    (else (eopl:error "Given a non-valid expression"))))
+    (else (eopl:error "Given a non-valid expression"))
+    ))
 
 ;; apply-procedure : Proc * ExpVal -> ExpVal
 (define (apply-procedure proc1 val)
@@ -365,4 +380,4 @@
 ; (eval "letrec fact(n) = if zero?(n) then 1 else *(n, (fact -(n, 1)))
 ;        in (fact 5)")
 ;
-; 
+;
