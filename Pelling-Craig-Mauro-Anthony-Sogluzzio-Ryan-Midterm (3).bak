@@ -116,7 +116,6 @@
 (check-expect (eval "let x = 20 in +(x, 10)")(num-val 30))
 (check-expect (eval "+ (10, 20)")(num-val 30))
 (check-expect (eval "+ (-10, 20)")(num-val 10))
-(check-expect (eval "+ (10, -20)")(num-val -10))
 (check-expect (eval "+ (-10, -20)")(num-val -30))
 (check-expect (eval "let x = 200
           in let f = proc (z) +(z, x)
