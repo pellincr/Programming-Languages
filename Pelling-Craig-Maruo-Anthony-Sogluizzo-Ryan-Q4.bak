@@ -1,5 +1,4 @@
 #lang eopl
-(require test-engine/racket-tests)
 
 ;;;;;;;;;;;;;;;; grammatical specification ;;;;;;;;;;;;;;;;
 
@@ -634,29 +633,4 @@
 ; 		    end
 ;        in (proc (x) +(x, x) (g 0))")
 ;
-
-(check-expect (eval "let g = let count = 0
-                in proc (dummy)
-                     begin
-                       set count = +(count, 1);
-                       count
- 		    end
-        in (proc (x) +(x, x) (g 0))")
-               (eval "lazylet g = let count = 0
-                in proc (dummy)
-                     begin
-                       set count = +(count, 1);
-                       count
- 		    end
-        in (proc (x) +(x, x) (g 0))"))
-
-(check-expect (eval "let g = let counter = 10
-                in proc (d) *(2, counter)
-        in (proc (x) +(x, x) (g 0))")
-              (eval "lazylet g = lazylet counter = 10
-                in proc (d) *(2, counter)
-        in (proc (x) +(x, x) (g 0))"))
-
-
-(test)
-
+;
