@@ -715,21 +715,29 @@
                              end
             in (sum 10)"))
 
+(check-expect (eval "let x = 200
+          in let f = proc (z) -(z, x)
+               in let x = 100
+                    in let g = proc (z) -(z, x)
+                         in -((f 1), (g 1))")
+              (eval "lazylet x = 200
+          in let f = proc (z) -(z, x)
+               in lazylet x = 100
+                    in lazylet g = proc (z) -(z, x)
+                         in -((f 1), (g 1))"))
 
-;;;This should return 11
-;(eval "lazylet swap = proc (a)
-;                     proc (b)
-;                       lazylet t = a
-;                       in begin
-;               		   set a = b;
-;                            set b = t
-; 			 end
-;         in lazylet a = 33
-; 	   in lazylet b = 44
-; 	      in begin
-; 		   ((swap a) b);
-; 		   -(a, b)
-; 		 end")
+(check-expect (eval "let p = newpair(4, 5)
+        in begin
+            setleft p = 15;
+            setright p = 15;
+            -(left(p), right(p))
+           end")
+              (eval "lazylet p = newpair(4, 5)
+        in begin
+            setleft p = 15;
+            setright p = 15;
+            -(left(p), right(p))
+           end"))
 
 
 (test)
