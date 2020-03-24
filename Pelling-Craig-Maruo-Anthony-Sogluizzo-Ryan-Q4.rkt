@@ -493,9 +493,9 @@
 
     ;Exercise: 4.42
     (lazylet-exp (var exp1 body)
-             (let ((v1 (value-of-operand exp1 env)))
-                        (value-of body
-                                  (extend-env var v1 env))))
+                 (let ((v1 (value-of-operand exp1 env)))
+                   (value-of body
+                             (extend-env var v1 env))))
     ))
 
 ;; apply-procedure : Proc * Ref -> ExpVal
@@ -642,7 +642,7 @@
                        count
  		    end
         in (proc (x) +(x, x) (g 0))")
-               (eval "lazylet g = let count = 0
+              (eval "lazylet g = let count = 0
                 in proc (dummy)
                      begin
                        set count = +(count, 1);
@@ -657,6 +657,77 @@
                 in proc (d) *(2, counter)
         in (proc (x) +(x, x) (g 0))"))
 
+(check-expect (eval "let temp = 0
+        in  let x = 5
+            in  lazylet mystery = proc (y)
+                                begin
+                                  set temp = x;
+                                  set x = y;
+                                  set y = temp;
+                                  x
+                                end
+                in (mystery 10)")
+              (eval "lazylet temp = 0
+        in  lazylet x = 5
+            in  lazylet mystery = proc (y)
+                                begin
+                                  set temp = x;
+                                  set x = y;
+                                  set y = temp;
+                                  x
+                                end
+                in (mystery 10)"))
+
+(check-expect (eval "let decr = proc (a) -(a, 1) in (decr 30)")
+              (eval "lazylet decr = proc (a) -(a, 1) in (decr 30)"))
+
+(check-expect (eval "let a = 3
+        in let p = proc (x) set x = 4
+           in begin
+                (p a);
+                a
+              end")
+              (eval "lazylet a = 3
+        in lazylet p = proc (x) set x = 4
+           in begin
+                (p a);
+                a
+              end"))
+
+(check-expect (eval "let res = 0
+        in letrec sum(n) = if zero?(n)
+                           then res
+                           else
+                             begin
+                              set res = +(res, n);
+                              (sum -(n, 1))
+                             end
+            in (sum 10)")
+              (eval "lazylet res = 0
+        in letrec sum(n) = if zero?(n)
+                           then res
+                           else
+                             begin
+                              set res = +(res, n);
+                              (sum -(n, 1))
+                             end
+            in (sum 10)"))
+
+
+;;;This should return 11
+;(eval "lazylet swap = proc (a)
+;                     proc (b)
+;                       lazylet t = a
+;                       in begin
+;               		   set a = b;
+;                            set b = t
+; 			 end
+;         in lazylet a = 33
+; 	   in lazylet b = 44
+; 	      in begin
+; 		   ((swap a) b);
+; 		   -(a, b)
+; 		 end")
 
 (test)
 
