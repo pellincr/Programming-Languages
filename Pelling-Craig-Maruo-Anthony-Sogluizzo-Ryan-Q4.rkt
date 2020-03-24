@@ -516,6 +516,8 @@
     (else
      (newref (a-thunk exp env)))))
 
+(check-expect (begin (initialize-store!) (value-of-operand (add-exp (const-exp 5) (const-exp 7)) (init-env)))3)
+
 ;; value-of-thunk : Thunk -> ExpVal
 (define (value-of-thunk th)
   (cases thunk th
@@ -728,6 +730,7 @@
 ; 		   ((swap a) b);
 ; 		   -(a, b)
 ; 		 end")
+
 
 (test)
 
