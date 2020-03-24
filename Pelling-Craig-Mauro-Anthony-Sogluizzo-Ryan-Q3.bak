@@ -1,5 +1,7 @@
 #lang eopl
 
+(require test-engine/racket-tests)
+
 ;;;;;;;;;;;;;;;; grammatical specification ;;;;;;;;;;;;;;;;
 
 (define the-lexical-spec
@@ -485,4 +487,65 @@
 ;                x
 ;              end")
 ;
-;
+
+
+(check-expect (eval "if zero?(1) then 1 else 2")
+              (num-val 2))
+(check-expect (eval "-(x, v)")
+              (num-val 5))
+(check-expect (eval "if zero?(-(x, x)) then x else 2")
+              (num-val 10))
+(check-expect (eval "if zero?(-(x, v)) then x else 2")
+              (num-val 2))
+(check-expect (eval "let x = 2 in -(x, 2)")
+              (num-val 0))
+
+(check-expect (eval "let a = 3
+        in let p = proc (x) set x = 4
+           in begin
+                (p a);
+                a
+              end")
+              (eval "letmut a = 3
+        in letmut p = proc (x) set x = 4
+           in begin
+                (p a);
+                a
+              end"))
+
+;(eval "let x = 0
+;        in letrec f (x) = set x = +(x, 1)
+;                  g (a) = set x = +(x, 2)
+;           in begin
+;                (f x);
+;                (g x);
+;                x
+;              end")
+; Will resut in an error since x is being mutated
+
+;(eval "let temp = 0
+;        in  let x = 5
+;            in  let mystery = proc (y)
+;                                begin
+;                                  set temp = x;
+;                                  set x = y;
+;                                  set y = temp;
+;                                  x
+;                                end
+;                in (mystery 10)")
+; Will resut in an error since x is being mutated
+
+
+
+(check-expect (eval "let x = 200
+          in let f = proc (z) -(z, x)
+               in let x = 100
+                    in let g = proc (z) -(z, x)
+                         in -((f 1), (g 1))")
+              (eval "letmut x = 200
+          in letmut f = proc (z) -(z, x)
+               in letmut x = 100
+                    in letmut g = proc (z) -(z, x)
+                         in -((f 1), (g 1))"))
+
+(test)
