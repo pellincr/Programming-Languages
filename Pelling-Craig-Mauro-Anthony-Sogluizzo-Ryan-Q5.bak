@@ -6,7 +6,6 @@
 
 ;fact-iter: num -> num
 ;Purpose: to return the factorial of the given number using continuations
-;Effect: current-num will be changed to 0 and accum will be changed to n!
 (define (fact-iter n)
   (begin
     (set! current-num n)
@@ -25,7 +24,6 @@
 ;Tests
 (check-expect (fact-iter 5) 120)
 (check-expect (fact-iter 0) 1)
-(check-expect (fact-iter 1) 1)
 (check-expect (fact-iter 3) 6)
 
 (test)
