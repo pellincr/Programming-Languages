@@ -371,7 +371,7 @@
     (zero?-exp (exp1)
                (let ((fnt1 (has-nontail? exp1)))
                  (cond [(not fnt1)
-                        exp]
+                        exp];;;;;;(call-exp k (list exp))
                        [else
                         (exp-cps exp1
                                  (let ((newparam (gen-param-symb)))
@@ -408,7 +408,7 @@
                         (proc-exp (list newparam)
                                   (let-exp var
                                            (var-exp newparam)
-                                           (exp-cps body k))))))
+                                           (exp-cps body k))))));;;;;;;;;;
 
     (letrec-exp (p-name params p-body letrec-body)
                 (letrec-exp p-name
